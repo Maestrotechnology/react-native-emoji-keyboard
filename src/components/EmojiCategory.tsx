@@ -138,10 +138,19 @@ export const EmojiCategory = React.memo(
       ],
     )
 
-    const handleOnScroll = (ev: { nativeEvent: { contentOffset: { y: number } } }) => {
-      setKeyboardScrollOffsetY(ev.nativeEvent.contentOffset.y)
-      clearEmojiTonesData()
-    }
+    const scrollYRef = React.useRef(0)
+
+    const handleOnScroll = React.useCallback(
+      (ev: { nativeEvent: { contentOffset: { y: number } } }) => {
+        const y = ev.nativeEvent.contentOffset.y
+
+        if (Math.abs(y - scrollYRef.current) > 12) {
+          scrollYRef.current = y
+          setKeyboardScrollOffsetY(y)
+        }
+      },
+      [setKeyboardScrollOffsetY],
+    )
 
     const keyExtractor = React.useCallback((item: JsonEmoji) => item.name, [])
 
@@ -149,11 +158,15 @@ export const EmojiCategory = React.memo(
 
     // with InteractionManager we can show emojis after interaction is finished
     // It helps with delay during category change animation
-    InteractionManager.runAfterInteractions(() => {
-      if (maxIndex === 0 && data.length) {
-        setMaxIndex(minimalEmojisAmountToDisplay)
-      }
-    })
+    React.useEffect(() => {
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (maxIndex === 0 && data.length) {
+          setMaxIndex(minimalEmojisAmountToDisplay)
+        }
+      })
+
+      return () => task.cancel()
+    }, [maxIndex, data.length, minimalEmojisAmountToDisplay])
 
     const onEndReached = () => {
       if (maxIndex <= data.length) {
@@ -171,7 +184,7 @@ export const EmojiCategory = React.memo(
     const flatListData = [...data]
 
     return (
-      <View style={[styles.container, { width }]}>
+      <View style={[styles.container, { width }]} pointerEvents="box-none">
         {!hideHeader && (
           <Text style={[styles.sectionTitle, themeStyles.header, { color: theme.header }]}>
             {translation[title]}
@@ -194,6 +207,7 @@ export const EmojiCategory = React.memo(
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={contentContainerStyle}
             scrollEventThrottle={16}
+            removeClippedSubviews={true}
           />
         )}
       </View>
